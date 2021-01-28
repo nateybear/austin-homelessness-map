@@ -7,10 +7,10 @@ library(ggmap)
 library(magrittr)
 library(crul)
 library(rjson)
-register_google(key = read_file("./api_secret.txt"))
+register_google(key = read_file("../api_secret.txt"))
 
 # Read these from Texas Observer's list and compile the unique offense descriptions used by AMC and DACC
-offense_descriptions <- read_csv("./data/tx_observer_data.csv") %>% 
+offense_descriptions <- read_csv("../data/tx_observer_data.csv") %>% 
   drop_na %>% 
   clean_names %>% 
   group_by(offense_description) %>% 
