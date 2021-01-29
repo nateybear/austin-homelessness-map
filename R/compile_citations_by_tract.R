@@ -78,18 +78,18 @@ add_lat_lon <- .cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "
   
   responses <- Async$new(urls = urls)$get()
   
-  parsed_responses <- responses %>% lapply(function(resp) {
+  parsed_responses <- responses %>% map(function(resp) {
     resp$parse() %>% fromJSON
   })
   
-  census_tracts <- parsed_responses %>% sapply(function(resp) {
+  census_tracts <- parsed_responses %>% map_chr(function(resp) {
     if (is.null(resp$status))
       resp$results[[1]]$block_fips %>% substr(6, 11)
     else
       NA
   })
   
-  cbind(df, census_tract = census_tracts)
+  return(cbind(df, census_tract = census_tracts))
 }
 
 add_census_tract <- .cached(.add_census_tract, CENSUS_CACHE_PATH, "lat", "lon")
@@ -150,7 +150,7 @@ amc_citations_by_tract <- AMC_YEARS %>%
   geocode_and_filter
 
 
-citations_by_tract <- rbind(dacc_citations_by_tract, amc_citations_by_tract)
+citations_by_tract <- bind_rows(dacc_citations_by_tract, amc_citations_by_tract)
 
 
 vroom_write(citations_by_tract, "data/citations_by_tract.csv.gz")
