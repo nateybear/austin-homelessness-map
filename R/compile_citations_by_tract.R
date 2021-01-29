@@ -2,19 +2,13 @@
 ##
 ## Note that you need a Google API key to use this (see ggmap's github page).
 ## Be careful, as this could incur charges! This is why we use caches in the form of csv files
-library(ggmap)
-library(tidyverse)
-library(janitor)
-library(magrittr)
-library(crul)
-library(rjson)
 
-register_google(key = read_file("api_secret.txt"))
+source("R/include.R", local = TRUE) # read the include file
 
-TX_OBSERVER_PATH <- "data/tx_observer_data.csv"
+TX_OBSERVER_PATH <- "data/tx_observer_data.csv.gz"
 FCC_API_URL <- "https://geo.fcc.gov/api/census/area"
-GOOGLE_CACHE_PATH <- "data/google_cache.csv"
-CENSUS_CACHE_PATH <- "data/census_cache.csv"
+GOOGLE_CACHE_PATH <- "data/google_cache.csv.gz"
+CENSUS_CACHE_PATH <- "data/census_cache.csv.gz"
 DACC_DATA_PREFIX <- "data/DACC_"
 DACC_YEARS <- 2017:2019
 AMC_DATA_PREFIX <- "data/AMC_"
@@ -28,7 +22,7 @@ AMC_YEARS <- 2015:2019
 
 # Going to use Texas Observer's data as a Source Of Truth for which citations we're looking for
 offense_descriptions <-
-  read_csv(TX_OBSERVER_PATH, col_types = cols()) %>%
+  csv(TX_OBSERVER_PATH, suppress = TRUE) %>%
   drop_na %>%
   clean_names %>%
   group_by(offense_description) %>%
@@ -47,9 +41,11 @@ make_google_search <- function(street, cross_street) {
 
 # cache a long-running operation at the given path.
 # ... represents the columns that determine the cache hit.
-cached <- function(mutation, path, ...) {
+.cached <- function(mutation, path, ...) {
+  
+  cache <- csv(path, suppress = TRUE)
+  
   function(df) {
-    cache <- read_csv(path, col_types = cols())
     new_entries <- anti_join(df, cache, ...) %>% select(...) %>% distinct
     
     if (nrow(new_entries) > 0) {
@@ -70,7 +66,7 @@ cached <- function(mutation, path, ...) {
   }
 }
 
-add_lat_lon <- cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "google_search")
+add_lat_lon <- .cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "google_search")
 
 
 # give me a dataframe with latitude and longitude, and
@@ -96,7 +92,7 @@ add_lat_lon <- cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "g
   cbind(df, census_tract = census_tracts)
 }
 
-add_census_tract <- cached(.add_census_tract, CENSUS_CACHE_PATH, "lat", "lon")
+add_census_tract <- .cached(.add_census_tract, CENSUS_CACHE_PATH, "lat", "lon")
 
 
 
@@ -106,10 +102,8 @@ add_census_tract <- cached(.add_census_tract, CENSUS_CACHE_PATH, "lat", "lon")
 ######## PIPELINE #############
 
 
-# give me a year for a DACC dataset and I'll open the CSV and clean to standardized format
-clean_dacc <- function(year) {
-  filename <- paste0(DACC_DATA_PREFIX, year, ".csv")
-  read_csv(filename, col_types = cols()) %>%
+# give me a DACC dataset and I'll clean it
+clean_dacc <- . %>%
     clean_names %>%
     mutate(date = strptime(offense_date, "%m/%d/%y")) %>%
     rename(
@@ -117,13 +111,10 @@ clean_dacc <- function(year) {
       street = offense_street_name,
       cross_street = offense_cross_street
     )
-}
 
 
-# give me a year for an AMC dataset and I'll open the CSV and clean to standardized format
-clean_amc <- function(year) {
-  filename <- paste0(AMC_DATA_PREFIX, year, ".csv")
-  read_csv(filename, col_types = cols()) %>%
+# give me an AMC dataset and I'll clean it
+clean_amc <- . %>%
     clean_names %>%
     mutate(date = strptime(offense_date, "%m/%d/%Y %H:%M:%S %p")) %>%
     rename(
@@ -131,7 +122,6 @@ clean_amc <- function(year) {
       street = offense_street_name,
       cross_street = offense_cross_street
     )
-}
 
 
 # with a cleaned dataframe,
@@ -146,18 +136,21 @@ geocode_and_filter <- . %>%
   select(date, offense_description, offense_code, census_tract, street, cross_street, lat, lon)
 
 
-# Now we prepare the pipeline with a functional programming mindset
-parse_dacc <- . %>% clean_dacc %>% geocode_and_filter
-parse_amc <- . %>% clean_amc %>% geocode_and_filter
+# Using vroom this pipeline is very clean
+dacc_citations_by_tract <- DACC_YEARS %>%
+  paste0("data/DACC_", ., ".csv.gz") %>% 
+  csv %>% 
+  clean_dacc %>% 
+  geocode_and_filter
+
+amc_citations_by_tract <- AMC_YEARS %>%
+  paste0("data/AMC_", ., ".csv.gz") %>% 
+  csv %>% 
+  clean_amc %>% 
+  geocode_and_filter
 
 
-# creating arguments for invoke_map
-fs <- rep(c(parse_dacc, parse_amc),
-          c(length(DACC_YEARS), length(AMC_YEARS)))
-years <- c(DACC_YEARS, AMC_YEARS)
+citations_by_tract <- rbind(dacc_citations_by_tract, amc_citations_by_tract)
 
 
-# the pipeline
-output_df <- invoke_map(fs, years) %>% reduce(rbind)
-
-write_csv(output_df, "data/citations_by_tract.csv")
+vroom_write(citations_by_tract, "data/citations_by_tract.csv.gz")
