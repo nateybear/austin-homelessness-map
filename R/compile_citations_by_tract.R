@@ -143,7 +143,7 @@ geocode_and_filter <- . %>%
   mutate(google_search = make_google_search(street, cross_street)) %>%
   add_lat_lon %>%
   add_census_tract %>%
-  select(date, offense_description, offense_code, census_tract, google_search, lat, lon)
+  select(date, offense_description, offense_code, census_tract, street, cross_street, lat, lon)
 
 
 # Now we prepare the pipeline with a functional programming mindset
@@ -151,7 +151,7 @@ parse_dacc <- . %>% clean_dacc %>% geocode_and_filter
 parse_amc <- . %>% clean_amc %>% geocode_and_filter
 
 
-# creating arguments for do.call
+# creating arguments for invoke_map
 fs <- rep(c(parse_dacc, parse_amc),
           c(length(DACC_YEARS), length(AMC_YEARS)))
 years <- c(DACC_YEARS, AMC_YEARS)
