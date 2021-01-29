@@ -87,7 +87,7 @@ add_lat_lon <- cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "g
   })
   
   census_tracts <- parsed_responses %>% sapply(function(resp) {
-    if (is.null(resp$stats))
+    if (is.null(resp$status))
       resp$results[[1]]$block_fips %>% substr(6, 11)
     else
       NA
