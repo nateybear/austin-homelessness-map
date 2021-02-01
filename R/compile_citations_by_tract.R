@@ -22,7 +22,7 @@ AMC_YEARS <- 2015:2019
 
 # Going to use Texas Observer's data as a Source Of Truth for which citations we're looking for
 offense_descriptions <-
-  csv(TX_OBSERVER_PATH, suppress = TRUE) %>%
+  vroom(TX_OBSERVER_PATH) %>%
   drop_na %>%
   clean_names %>%
   group_by(offense_description) %>%
@@ -31,19 +31,19 @@ offense_descriptions <-
 
 # give me street and cross streets from your dataset and I'll give you something you can Google search
 make_google_search <- function(street, cross_street) {
-  normed_street <- 
+  normed_street <-
     ifelse(is.na(cross_street),
       street,
-      paste(street, "and", cross_street))
+      glue("{street} and {cross_street}"))
   
-  paste(normed_street, "Austin, TX")
+  glue("{normed_street} Austin, TX")
 }
 
 # cache a long-running operation at the given path.
 # ... represents the columns that determine the cache hit.
 .cached <- function(mutation, path, ...) {
   
-  cache <- csv(path, suppress = TRUE)
+  cache <- vroom(path)
   
   function(df) {
     new_entries <- anti_join(df, cache, ...) %>% select(...) %>% distinct
@@ -59,7 +59,7 @@ make_google_search <- function(street, cross_street) {
       }
       
       cache %<>% rbind(new_entries)
-      write_csv(cache, path)
+      vroom_write(cache, path)
     }
     
     return(inner_join(df, cache, c(...)))
@@ -74,7 +74,7 @@ add_lat_lon <- .cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "
 # 2. parse the returned 15-digit block FIPS for the 6-digit census tract
 # 3. return the original dataset with a new column of census tract #s
 .add_census_tract <- function(df) {
-  urls <- paste0(FCC_API_URL, "?lat=", df$lat, "&lon=", df$lon)
+  urls <- glue("{FCC_API_URL}?lat={df$lat}&lon={df$lon}")
   
   responses <- Async$new(urls = urls)$get()
   
@@ -84,7 +84,7 @@ add_lat_lon <- .cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "
   
   census_tracts <- parsed_responses %>% map_chr(function(resp) {
     if (is.null(resp$status))
-      resp$results[[1]]$block_fips %>% substr(6, 11)
+      resp$results$block_fips[1] %>% substr(6, 11)
     else
       NA
   })
@@ -105,7 +105,7 @@ add_census_tract <- .cached(.add_census_tract, CENSUS_CACHE_PATH, "lat", "lon")
 # give me a DACC dataset and I'll clean it
 clean_dacc <- . %>%
     clean_names %>%
-    mutate(date = strptime(offense_date, "%m/%d/%y")) %>%
+    mutate(date = mdy(offense_date)) %>%
     rename(
       offense_description = charges_description,
       street = offense_street_name,
@@ -116,7 +116,7 @@ clean_dacc <- . %>%
 # give me an AMC dataset and I'll clean it
 clean_amc <- . %>%
     clean_names %>%
-    mutate(date = strptime(offense_date, "%m/%d/%Y %H:%M:%S %p")) %>%
+    mutate(date = mdy_hms(offense_date)) %>%
     rename(
       offense_description = offense_charge_description,
       street = offense_street_name,
@@ -137,17 +137,17 @@ geocode_and_filter <- . %>%
 
 
 # Using vroom this pipeline is very clean
-dacc_citations_by_tract <- DACC_YEARS %>%
-  paste0("data/DACC_", ., ".csv.gz") %>% 
-  csv %>% 
+glue("data/DACC_{DACC_YEARS}.csv.gz") %>%
+  vroom %>% 
   clean_dacc %>% 
-  geocode_and_filter
+  geocode_and_filter ->
+  dacc_citations_by_tract
 
-amc_citations_by_tract <- AMC_YEARS %>%
-  paste0("data/AMC_", ., ".csv.gz") %>% 
-  csv %>% 
+glue("data/AMC_{AMC_YEARS}.csv.gz") %>% 
+  vroom %>% 
   clean_amc %>% 
-  geocode_and_filter
+  geocode_and_filter ->
+  amc_citations_by_tract
 
 
 citations_by_tract <- bind_rows(dacc_citations_by_tract, amc_citations_by_tract)
