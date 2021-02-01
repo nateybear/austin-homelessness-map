@@ -1,6 +1,7 @@
 library(ggmap)
 library(gganimate)
 library(gifski)
+library(ggthemes)
 library(jsonlite)
 library(tidyverse)
 library(janitor)

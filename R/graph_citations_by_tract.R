@@ -58,7 +58,7 @@ plot_citations <- function(d)
     guide = FALSE,
     trans = "log1p"
   ) +
-  theme_minimal()
+  theme_economist_white()
 
 # For each aggregation period, make a static plot
 citations_by_tract %>%
@@ -86,14 +86,16 @@ Sys.glob("figures/citations_by_tract_*.png") %T>%
 # let's also make an animated plot with gganimate
 gif_plot <- citations_by_tract %>% plot_citations +
   transition_time(group_date) +
-  labs(title = '{format(frame_time, "%B %Y")}') +
-  enter_appear() +
-  exit_disappear()
+  labs(title = "Austin Homeless Citations by Census Tract",
+       subtitle = '{format(frame_time, "%B %Y")}') +
+  ease_aes(fill = "sine-in-out")
 
-# ~50 months with 30 seconds total duration = ~half a second per month
+# one plot per second. How does that look?
 animate(gif_plot,
         renderer = gifski_renderer(),
-        duration = 30,
-        fps = 5)
+        duration = 60,
+        fps = 20,
+        width = 1200,
+        height = 900)
 
 anim_save("figures/citations_by_tract.gif")
