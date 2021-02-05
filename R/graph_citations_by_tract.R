@@ -2,9 +2,6 @@
 # 1. Static per-month plots of citations by tract
 # 2. GIF animating the per-month plots
 
-source("R/include.R", local = TRUE) # read the include file
-
-
 
 ##### Cleaning and Shaping #####
 
@@ -14,7 +11,8 @@ source("R/include.R", local = TRUE) # read the include file
 city_boundaries <-
   read_sf("data/austin_city_limits.shp") %>%
   st_transform("NAD83") %>%
-  st_convex_hull
+  st_union() %>%
+  st_convex_hull()
 
 census_tracts <-
   read_sf("data/texas_census_tracts.shp") %>%
@@ -26,33 +24,37 @@ census_tracts <-
 # 3. ungroup and run complete to ensure that every tract has a datum for every period
 # 4. join on census tract to attach the sf geometry to our dataset
 # 5. select only the columns we care about
-citations_by_tract <- vroom("data/citations_by_tract.csv.gz") %>%
+citations_by_tract_grouped <- vroom("data/citations_by_tract.csv.gz") %>%
   mutate(group_date = floor_date(date, "month")) %>%
   group_by(census_tract, group_date) %>%
   summarise(citations = n())  %>%
   ungroup %>%
   complete(census_tract, group_date, fill = list(citations = 0)) %>%
   inner_join(census_tracts, c("census_tract" = "TRACTCE")) %>%
-  select(citations, census_tract, group_date, geometry)
+  select(citations, census_tract, group_date, geometry) %>%
+  st_sf
 
 
 
 ##### Static Plot #####
 
 # set limits for the fill scale so that colors represent the same thing for every plot
-.lims <- with(citations_by_tract, c(min(citations), max(citations)))
+.lims <- with(citations_by_tract_grouped, range(citations))
 lims(fill = .lims)
+
+# ggmap data
+map_data <- st_bbox(citations_by_tract_grouped) %>% as.numeric() %>% get_stamenmap(maptype = "toner", zoom = 13)
 
 # function to plot a static subset of the data
 plot_citations <- function(d)
-  ggplot(d) +
-  geom_sf(aes(
+  ggmap(map_data, aes(alpha = 0.5)) +
+  geom_sf(data = d, aes(
     fill = citations,
     geometry = geometry,
     group = census_tract
-  )) +
+  ), inherit.aes = F) +
   scale_fill_gradient(
-    low = "white",
+    low = rgb(0,0,0,0),
     high = "red",
     name = "Citations per month",
     guide = FALSE,
@@ -61,7 +63,7 @@ plot_citations <- function(d)
   theme_economist_white()
 
 # For each aggregation period, make a static plot
-citations_by_tract %>%
+citations_by_tract_grouped %>%
   group_by(group_date) %>%
   group_walk(function(group_data, group_key) {
     date <- group_key$group_date
@@ -84,17 +86,17 @@ Sys.glob("figures/citations_by_tract_*.png") %T>%
 ##### Animated Plot #####
 
 # let's also make an animated plot with gganimate
-gif_plot <- citations_by_tract %>% plot_citations +
+gif_plot <- citations_by_tract_grouped %>% plot_citations +
   transition_time(group_date) +
   labs(title = "Austin Homeless Citations by Census Tract",
        subtitle = '{format(frame_time, "%B %Y")}') +
-  ease_aes(fill = "sine-in-out")
+  ease_aes(fill = "sine-in")
 
-# one plot per second. How does that look?
+# two plots per second. How does that look?
 animate(gif_plot,
         renderer = gifski_renderer(),
-        duration = 60,
-        fps = 20,
+        duration = 30,
+        fps = 10,
         width = 1200,
         height = 900)
 
