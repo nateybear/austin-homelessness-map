@@ -1,0 +1,13 @@
+2021-02-04 11:53:29 INFO:.add_lat_long:Source : https://maps.googleapis.com/maps/api/geocode/json?address=1600+BLOCK+E.+8TH+STREET+Austin,+TX&key=xxx%0A
+2021-02-04 11:53:33 INFO:.add_lat_long:Source : https://maps.googleapis.com/maps/api/geocode/json?address=2312+WESTER+TRAVIS+BLVD+#401+Austin,+TX&key=xxx%0A
+2021-02-04 11:53:33 WARNING:.add_lat_long:Geocoding "2312 WESTER TRAVI..." failed with error:
+You must use an API key to authenticate each request to Google Maps Platform APIs. For additional information, please refer to http://g.co/dev/maps-no-account
+2021-02-04 11:54:04 INFO:.add_lat_long:Source : https://maps.googleapis.com/maps/api/geocode/json?address=2312+WESTER+TRAVIS+BLVD+#401+Austin,+TX&key=xxx%0A
+2021-02-04 11:54:04 WARNING:.add_lat_long:Geocoding "2312 WESTER TRAVI..." failed with error:
+You must use an API key to authenticate each request to Google Maps Platform APIs. For additional information, please refer to http://g.co/dev/maps-no-account
+2021-02-04 11:55:09 INFO:.add_lat_long:Source : https://maps.googleapis.com/maps/api/geocode/json?address=2312+WESTER+TRAVIS+BLVD+#401+Austin,+TX&key=xxx%0A
+2021-02-04 11:55:09 WARNING:.add_lat_long:Geocoding "2312 WESTER TRAVI..." failed with error:
+You must use an API key to authenticate each request to Google Maps Platform APIs. For additional information, please refer to http://g.co/dev/maps-no-account
+2021-02-04 16:15:24 INFO:.add_lat_long:Source : https://maps.googleapis.com/maps/api/geocode/json?address=2312+WESTER+TRAVIS+BLVD+#401+Austin,+TX&key=xxx%0A
+2021-02-04 16:15:25 WARNING:.add_lat_long:Geocoding "2312 WESTER TRAVI..." failed with error:
+You must use an API key to authenticate each request to Google Maps Platform APIs. For additional information, please refer to http://g.co/dev/maps-no-account
