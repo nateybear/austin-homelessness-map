@@ -1,0 +1,141 @@
+---
+title: "Geocoding Accuracy"
+author: "Nathan Hattersley"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+here::i_am("writing/geocoding.Rmd")
+knitr::opts_chunk$set(
+  echo = TRUE,
+  tidy = 'styler',
+  root.dir = here::here(),
+  collapse = T,
+  message = F,
+  warning = F
+)
+```
+```{r include=FALSE}
+source(here::here("R/utils/include.R"), local = knitr::knit_global())
+library(dplyr)
+```
+
+# How accurate are my geocoders?
+
+I've mostly stuck to Google Maps API through ggmap, but I also uploaded a spreadsheet of 3,500 unique addresses to geocod.io to test their reverse geocoding. The output was nicer than ggmaps in that it has a confidence score and a census tract. It cost me $2.12. Let's peak at the data:
+
+```{r, message=F}
+# helper function
+showTable <- . %>% kbl() %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+geocodio <- vroom(here("data/geocodio_trial_run.csv.gz")) %>% clean_names
+
+geocodio %>% select(1:5, city, census_tract_code) %>% head %>% showTable
+```
+
+## Quality of the Geocod.io Data
+
+### Distinct cities
+
+So a first sanity check would be to see if there are any addresses not geocoded to the city of Austin:
+
+```{r}
+geocodio %>% distinct(city)
+```
+
+
+### Check Lat/Lon against Austin City Limits
+
+These are Texas cities, but they are definitely not suburbs of Austin. The `austin_city_limits.shp` file contains geometries for the city council districts in Austin. Let's use a rough polygon of those districts to see how often `geocod.io` geocoded to a point outside of Austin:
+
+```{r, message=F}
+# using the sf package here
+austin_city_limits <-
+  st_read(here("data/austin_city_limits.shp")) %>% st_union %>% st_convex_hull
+
+# create an "sf" object which is just a dataframe with geometries attached
+geocodio_geometry <- geocodio %$% map2(longitude, latitude, ~ st_point(c(.x, .y)))
+geocodio %<>% st_sf(geometry = geocodio_geometry, crs = st_crs(austin_city_limits))
+geocodio %<>% cbind(within_austin = st_intersects(geocodio, austin_city_limits, sparse = F))
+
+# how many points were not in Austin?
+geocodio %>% count(within_austin) %>% as_tibble %>% select(within_austin, n)
+```
+
+### Peak at points outside city limits
+
+That doesn't look too bad... about 4% of the geocoded addresses are outside of the city of Austin. I'm comfortable dropping them, but let's take a closer look at the data and see if we can learn anything about the addresses that are getting geocoded to a location outside of the city of Austin.
+
+```{r}
+# let's view a few of the points that are not in Austin
+geocodio %>% filter(!within_austin) %>% select(address, accuracy_score, city, county) %>% head(10) %>% showTable
+```
+
+### Plot points for perspective
+
+As a native Austinite I can locate these addresses within the city of Austin. Non-natives may not realize how wrong the given estimates are. Let's plot the points to get a better sense:
+```{r message=F, warning=F}
+# exclude anything from the plot that is obviously wrong (two points were located in Boston :( )
+geocodio_minus_boston <- geocodio %>% filter(longitude < -90)
+
+stamen_map <- st_bbox(geocodio_minus_boston) %>% as.numeric() %>% get_stamenmap()
+
+ggmap(stamen_map) +
+  geom_sf(data = geocodio_minus_boston, inherit.aes = F, color = "#F54D97")
+```
+
+## Quality of Google Maps data
+
+Let's do exactly what we did with `geocod.io` and see how good Google Maps (via ggmaps) did. First, let's peak at the shape of the data and then create sf POINT objects like we did before.
+
+```{r, message=F}
+google_maps <- vroom(here("data/google_cache.csv.gz")) %>% clean_names
+google_maps %>% head(5) %>% showTable
+# create an "sf" object which is just a dataframe with geometries attached
+maps_geometry <- google_maps %$% map2(lon, lat, ~ st_point(c(.x, .y)))
+google_maps %<>% st_sf(geometry = maps_geometry, crs = st_crs(austin_city_limits))
+google_maps %<>% cbind(within_austin = st_intersects(google_maps, austin_city_limits, sparse = F))
+
+# how many points were not in Austin?
+google_maps %>% count(within_austin) %>% as_tibble %>% select(within_austin, n)
+```
+
+### Plot points outside city limits
+
+Peaking at the data for "Wrong City" points here would not be very informative since we just have lat and lon and no other identifying information. Let's just skip straight to the plot:
+
+```{r}
+ggmap(stamen_map) +
+  geom_sf(data = google_maps, inherit.aes = F, color = "#F54D97")
+```
+
+## Conclusions on data quality
+
+There were definitely errors that both APIs committed. From the maps it doesn't look like they're committing the "same type" of error, i.e. it looks like errors are clustered in differenct places (in San Antonio for geocod.io, and along I-35 for Google Maps). So perhaps we can conclude that in any one instance, one of the answers is "good enough". 
+
+Let's build a dataset that contains the distance between the two APIs for datapoints. That way, we can look at addresses where geocod.io and Google Maps *really* disagree.
+
+```{r}
+citations_by_tract <- vroom(here("data/citations_by_tract.csv.gz"))
+
+comparison_dataset <- citations_by_tract %>% distinct(google_search) %>% inner_join(google_maps, c("google_search")) %>% inner_join(geocodio, c("google_search" = "address"))
+
+distance <- ~st_distance(.x, .y) %>% units::set_units(mi) %>% as.numeric
+comparison_dataset %<>% mutate(distance_miles = map2_dbl(geometry.x, geometry.y, distance))
+
+comparison_dataset %>% arrange(desc(distance_miles)) %>% filter(distance_miles > 2) %>% select(google_search, distance_miles, within_austin_google = within_austin.x, within_austin_geocodio = within_austin.y) %>% showTable
+```
+
+### Heuristic Approach
+
+This table suggests a heuristic approach: For all the points with the biggest distance apart, we tend to see one API be "objectively right" in that it is inside Austin City Limits while the other is not.
+
+I will take being inside Austin City Limits as a sufficient condition for accuracy, then. That means that, using Google Maps API as the initial source of truth,
+
+1. Is the Google Maps latitude/longitude inside city limits?
+      - if yes, then keep this lat/lon
+2. Is there a geocodio address search we can cross-reference?
+      - if no, then discard observation
+3. Is the geocodio latitude/longitude inside city limits?
+      - if yes, then keep this lat/lon
+      - if no, then discard observation
