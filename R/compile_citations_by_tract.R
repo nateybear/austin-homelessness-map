@@ -44,8 +44,9 @@ make_google_search <- function(street, cross_street) {
   
   cache <- vroom(path)
   
+  # .cached is a higher-order function. it returns a function
   function(df) {
-    new_entries <- anti_join(df, cache, ...) %>% select(...) %>% distinct
+    new_entries <- anti_join(df, cache, c(...)) %>% select(...) %>% distinct
     
     if (nrow(new_entries) > 0) {
       new_entries %<>% mutation
@@ -57,15 +58,17 @@ make_google_search <- function(street, cross_street) {
         new_entries %<>% drop_na
       }
       
-      cache %<>% rbind(new_entries)
+      cache <<- bind_rows(cache, new_entries) # Need to use scoping assignment to access closure's outer scope!
       vroom_write(cache, path)
+      message(glue("Updated cache with {nrow(new_entries)} entries"))
     }
     
     return(inner_join(df, cache, c(...)))
   }
 }
-
-add_lat_lon <- .cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "google_search")
+source("R/utils/function_logger.R", local = T)
+.add_lat_long <- . %>% mutate_geocode(google_search)
+add_lat_lon <- .cached(withLogging(.add_lat_long), GOOGLE_CACHE_PATH, "google_search")
 
 
 # give me a dataframe with latitude and longitude, and
@@ -91,7 +94,7 @@ add_lat_lon <- .cached(. %>% mutate_geocode(google_search), GOOGLE_CACHE_PATH, "
   return(cbind(df, census_tract = census_tracts))
 }
 
-add_census_tract <- .cached(.add_census_tract, CENSUS_CACHE_PATH, "lat", "lon")
+add_census_tract <- .cached(withLogging(.add_census_tract), CENSUS_CACHE_PATH, "lat", "lon")
 
 
 
