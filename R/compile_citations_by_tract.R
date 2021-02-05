@@ -2,15 +2,14 @@
 ##
 ## Note that you need a Google API key to use this (see ggmap's github page).
 ## Be careful, as this could incur charges! This is why we use caches in the form of csv files
+here::i_am("R/compile_citations_by_tract.R")
 
-source("R/include.R", local = TRUE) # read the include file
-
-TX_OBSERVER_PATH <- "data/tx_observer_data.csv.gz"
+TX_OBSERVER_PATH <- here("data/tx_observer_data.csv.gz")
 FCC_API_URL <- "https://geo.fcc.gov/api/census/area"
-GOOGLE_CACHE_PATH <- "data/google_cache.csv.gz"
-CENSUS_CACHE_PATH <- "data/census_cache.csv.gz"
+GOOGLE_CACHE_PATH <- here("data/google_cache.csv.gz")
+CENSUS_CACHE_PATH <- here("data/census_cache.csv.gz")
 DACC_DATA_PREFIX <- "data/DACC_"
-DACC_YEARS <- 2017:2019
+DACC_YEARS <- 2015:2019
 AMC_DATA_PREFIX <- "data/AMC_"
 AMC_YEARS <- 2015:2019
 
@@ -133,17 +132,19 @@ geocode_and_filter <- . %>%
   mutate(google_search = make_google_search(street, cross_street)) %>%
   add_lat_lon %>%
   add_census_tract %>%
-  select(date, offense_description, offense_code, census_tract, street, cross_street, lat, lon)
+  select(date, offense_description, offense_code, census_tract, street, cross_street, lat, lon, google_search)
 
 
 # Using vroom this pipeline is very clean
 glue("data/DACC_{DACC_YEARS}.csv.gz") %>%
+  here %>%
   vroom %>% 
   clean_dacc %>% 
   geocode_and_filter ->
   dacc_citations_by_tract
 
 glue("data/AMC_{AMC_YEARS}.csv.gz") %>% 
+  here %>%
   vroom %>% 
   clean_amc %>% 
   geocode_and_filter ->
