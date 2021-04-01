@@ -3,10 +3,10 @@ if (!("librarian" %in% rownames(utils::installed.packages()))) {
   install.packages("librarian")
 }
 
-# N.B. add new packages to the top so that they don't mask dplyr::filter :)
 librarian::shelf( 
   cran_repo = "https://cran.microsoft.com/", # Dallas, TX
   quiet = TRUE,
+  tidymodels,
   units,
   here,
   kableExtra,
@@ -28,6 +28,9 @@ librarian::shelf(
   transformr
 )
 
+# try to mask stats::filter
+library(dplyr)
+
 logging::basicConfig()
 
 # register API key for ggmap
@@ -39,3 +42,5 @@ ggmap::register_google(key = read_file(here("api_secret.txt")))
   vroom(file) %>% vroom_write(glue("{file}.gz"))
   file.remove(file)
 }
+
+.f <- as_mapper

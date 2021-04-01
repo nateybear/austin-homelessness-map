@@ -20,11 +20,15 @@ source(here::here("R/utils/include.R"), local = knitr::knit_global())
 library(dplyr)
 ```
 
+# Two types of errors
+
+I posit there are two types of errors that arise from geocoding. One is where the API totally misinterprets the input and geocodes an address to a latitude and longitude that aren't even in the city of Austin. I'll call that "Wrong City" error. The other is when the police record contains an address that would be considered ambiguous even to human eyes, for instance a street name with no street or block number. Then the geocoder is forced to cite a precise location and hence is vulnerable to a possibly large discrepancy. I'll call this "Ambiguous Address" error.
+
 # How accurate are my geocoders?
 
-I've mostly stuck to Google Maps API through ggmap, but I also uploaded a spreadsheet of 3,500 unique addresses to geocod.io to test their reverse geocoding. The output was nicer than ggmaps in that it has a confidence score and a census tract. It cost me $2.12. Let's peak at the data:
+I've mostly stuck to Google Maps API through the `ggmap` package, but I also uploaded a spreadsheet of 3,500 unique addresses to geocod.io to test their reverse geocoding. The output was nicer than ggmaps in that it has a confidence score and a census tract. It cost me $2.12. Let's peak at the data:
 
-```{r, message=F}
+```{r}
 # helper function
 showTable <- . %>% kbl() %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 
@@ -37,7 +41,7 @@ geocodio %>% select(1:5, city, census_tract_code) %>% head %>% showTable
 
 ### Distinct cities
 
-So a first sanity check would be to see if there are any addresses not geocoded to the city of Austin:
+So a first sanity check for "Wrong City" error would be to see if there are any addresses not geocoded to the city of Austin:
 
 ```{r}
 geocodio %>% distinct(city)
@@ -68,7 +72,7 @@ That doesn't look too bad... about 4% of the geocoded addresses are outside of t
 
 ```{r}
 # let's view a few of the points that are not in Austin
-geocodio %>% filter(!within_austin) %>% select(address, accuracy_score, city, county) %>% head(10) %>% showTable
+geocodio %>% dplyr::filter(!within_austin) %>% select(address, accuracy_score, city, county) %>% head(10) %>% showTable
 ```
 
 ### Plot points for perspective
@@ -76,7 +80,7 @@ geocodio %>% filter(!within_austin) %>% select(address, accuracy_score, city, co
 As a native Austinite I can locate these addresses within the city of Austin. Non-natives may not realize how wrong the given estimates are. Let's plot the points to get a better sense:
 ```{r message=F, warning=F}
 # exclude anything from the plot that is obviously wrong (two points were located in Boston :( )
-geocodio_minus_boston <- geocodio %>% filter(longitude < -90)
+geocodio_minus_boston <- geocodio %>% dplyr::filter(longitude < -90)
 
 stamen_map <- st_bbox(geocodio_minus_boston) %>% as.numeric() %>% get_stamenmap()
 
@@ -86,7 +90,7 @@ ggmap(stamen_map) +
 
 ## Quality of Google Maps data
 
-Let's do exactly what we did with `geocod.io` and see how good Google Maps (via ggmaps) did. First, let's peak at the shape of the data and then create sf POINT objects like we did before.
+Let's do exactly what we did with `geocod.io` and see how good Google Maps did. First, let's peak at the shape of the data and then create sf POINT objects like we did before.
 
 ```{r, message=F}
 google_maps <- vroom(here("data/google_cache.csv.gz")) %>% clean_names
@@ -120,15 +124,23 @@ citations_by_tract <- vroom(here("data/citations_by_tract.csv.gz"))
 
 comparison_dataset <- citations_by_tract %>% distinct(google_search) %>% inner_join(google_maps, c("google_search")) %>% inner_join(geocodio, c("google_search" = "address"))
 
-distance <- ~st_distance(.x, .y) %>% units::set_units(mi) %>% as.numeric
-comparison_dataset %<>% mutate(distance_miles = map2_dbl(geometry.x, geometry.y, distance))
+distance <- ~st_distance(.x, .y) %>% units::set_units(miles) %>% as.numeric
+comparison_dataset %<>% mutate(distance_miles = map2_dbl(geometry.x, geometry.y, distance)) %>% rename(within_austin_google = within_austin.x, within_austin_geocodio = within_austin.y)
 
-comparison_dataset %>% arrange(desc(distance_miles)) %>% filter(distance_miles > 2) %>% select(google_search, distance_miles, within_austin_google = within_austin.x, within_austin_geocodio = within_austin.y) %>% showTable
+# let's see if we can construct a table of accuracy by within_austin_XXX
+comparison_dataset %>% group_by(within_austin_google, within_austin_geocodio) %>% summarise(count = n(), `Miles 25%` = quantile(distance_miles, 0.25), `Miles 50%` = median(distance_miles), `Miles 75%` = quantile(distance_miles, 0.75)) %>% showTable
+```
+
+```{r, eval = F}
+ggplot(comparison_dataset) + geom_histogram(aes(distance_miles, fill = glue("{within_austin_geocodio}{within_austin_google}")), bins = 75) + facet_wrap( ~ within_austin_google + within_austin_geocodio, ncol = 1, scales = "free", labeller = "label_both") + theme_fivethirtyeight() + theme(legend.position = "none") + labs(title = "Distance in miles between Google and Geocod.io Estimate", subtitle = "Cross-tabulated by \"Wrong City\" errors*", caption = "*Note scale differences")
+```
+```{r, echo = F, out.width='100%'}
+knitr::include_graphics(here("figures/geocoding_distances.png"))
 ```
 
 ### Heuristic Approach
 
-This table suggests a heuristic approach: For all the points with the biggest distance apart, we tend to see one API be "objectively right" in that it is inside Austin City Limits while the other is not.
+The tables suggest a heuristic approach: First, there is probably very little "Ambiguous Address" bias, as shown by the mean distance when both geocoders are within Austin City Limits.
 
 I will take being inside Austin City Limits as a sufficient condition for accuracy, then. That means that, using Google Maps API as the initial source of truth,
 
