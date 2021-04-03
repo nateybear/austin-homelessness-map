@@ -5,3 +5,4 @@
 .DS_Store
 api_secret.txt
 logs
+figures/citations_by_tract.tar.gz
