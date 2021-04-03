@@ -78,6 +78,15 @@ geocode_and_filter <- . %>%
   add_census_tract %>%
   select(date, offense_description, offense_code, census_tract, street, cross_street, lat, lon, address)
 
+# offense_description is not well-coded (#{offense_code} != #{offense_description}) This is from visual examination
+recode_offenses <- . %>%
+  mutate(offense_description = case_when(
+    offense_code == 62220 ~ "Aggressive Solicitation",
+    offense_code == 62611 ~ "No sit/No lie",
+    offense_code == 62615 ~ "Public camping",
+    TRUE ~ "Other Solicitation"
+  ))
+
 # compile the citations for DACC
 dacc_citations_by_tract <- 
   map_df(DACC_YEARS, ~{
@@ -86,7 +95,8 @@ dacc_citations_by_tract <-
       vroom %>% 
       clean_dacc %>%
       trim_year(.x) %>%
-      geocode_and_filter
+      geocode_and_filter %>%
+      recode_offenses
   })
 
 # compile the citations for DACC
@@ -97,7 +107,8 @@ amc_citations_by_tract <-
       vroom %>% 
       clean_amc %>%
       trim_year(.x) %>%
-      geocode_and_filter
+      geocode_and_filter %>%
+      recode_offenses
   })
 
 citations_by_tract <- bind_rows(dacc_citations_by_tract, amc_citations_by_tract)
