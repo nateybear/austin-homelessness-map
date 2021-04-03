@@ -18,7 +18,6 @@ census_tracts <-
   read_sf("data/texas_census_tracts.shp") %>%
   st_intersection(city_boundaries)
 
-source(here("R/utils/group_citations.R"), local = TRUE)
 # Take our citation by tract data and
 # 1. add the "group_date" which is the granularity we want to aggregate by
 # 2. group and summarise number of citations by census tract per aggregation period

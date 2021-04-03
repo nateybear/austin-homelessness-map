@@ -2,16 +2,12 @@
 ##
 ## Note that you need a Google API key to use this (see ggmap's github page).
 ## Be careful, as this could incur charges! This is why we use caches in the form of csv files
-here::i_am("R/build/compile_citations_by_tract.R")
 
 TX_OBSERVER_PATH <- here("data/tx_observer_data.csv.gz")
 DACC_DATA_PREFIX <- "data/DACC_"
 DACC_YEARS <- 2015:2019
 AMC_DATA_PREFIX <- "data/AMC_"
 AMC_YEARS <- 2015:2019
-
-source(here("R/utils/geometry_utils.R"), local = T)
-
 
 ########### HELPER DATA AND FUNCTIONS #############
 

@@ -1,3 +1,5 @@
 # loads our packages and does any setup we need
-message("Loading packages from R/utils/include.R")
-source("R/utils/include.R", local = TRUE)
+source("R/include.R", local = TRUE)
+for (file in Sys.glob("R/utils/**.R")) {
+  source(file, local = TRUE)
+}

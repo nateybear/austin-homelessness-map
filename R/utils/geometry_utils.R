@@ -1,6 +1,5 @@
 # This file contains operations to help work with the sf package and do the various
 # geocoding necessary for this project
-# 
 
 GOOGLE_CACHE_PATH <- here("data/google_cache.csv.gz")
 CENSUS_CACHE_PATH <- here("data/census_cache.csv.gz")
@@ -49,7 +48,7 @@ within_austin <- function(lat, lon) {
     return(inner_join(df, cache, c(...)))
   }
 }
-source("R/utils/function_logger.R", local = T)
+
 .add_lat_long <- . %>% mutate_geocode(address)
 add_lat_lon <- .cached(withLogging(.add_lat_long), GOOGLE_CACHE_PATH, "address")
 
