@@ -73,6 +73,7 @@ trim_year <- function(df, year) {
 # 3. select the columns of interest
 geocode_and_filter <- . %>%
   inner_join(offense_descriptions, c("offense_description")) %>%
+  dplyr::filter(offense_code %in% c(62615, 62611)) %>%
   mutate(address = make_address(street, cross_street)) %>%
   add_lat_lon %>%
   add_census_tract %>%

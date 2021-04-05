@@ -13,9 +13,7 @@ austin_city_limits <- read_sf("data/austin_city_limits.shp") %>%
   st_convex_hull
 
 within_austin <- function(lat, lon) {
-  out <- suppressMessages(map2_lgl(lon, lat, ~st_point(c(.x, .y)) %>% st_intersects(austin_city_limits, F) %>% as.logical))
-  gc()
-  return(out)
+  suppressMessages(map2_lgl(lon, lat, ~st_point(c(.x, .y)) %>% st_intersects(austin_city_limits, F) %>% as.logical))
 }
 
 ### Geocoding utils ###
@@ -67,27 +65,13 @@ add_lat_lon <- .cached(withLogging(.add_lat_long), GOOGLE_CACHE_PATH, "address")
   })
   
   census_tracts <- parsed_responses %>% map_chr(function(resp) {
-    if (is.null(resp$status))
+    if (is.null(resp$status) && length(resp$results) > 0)
       resp$results$block_fips[1] %>% substr(6, 11)
     else
       NA
   })
   
-  return(cbind(df, census_tract = census_tracts))
+  return(cbind(df, census_tract = census_tracts)) 
 }
 
 add_census_tract <- .cached(withLogging(.add_census_tract), CENSUS_CACHE_PATH, "lat", "lon")
-
-# batch an operation over a dataframe. accepts a purrr-style formula
-# e.g.
-# iris %>% batched(~filter(.x, Species == "setosa"))
-batched <- function(df, f, batchSize = 100) {
-  if (is_formula(f)) {
-    f <- as_mapper(f)
-  }
-  map_df(0:floor(nrow(df) / batchSize), function(i) {
-    start <- i * batchSize + 1
-    end <- min((i + 1) * batchSize, nrow(df))
-    f(slice(df, start:end))
-  })
-}

@@ -24,7 +24,9 @@ census_tracts <-
 # 3. ungroup and run complete to ensure that every tract has a datum for every period
 # 4. join on census tract to attach the sf geometry to our dataset
 # 5. select only the columns we care about
-citations_by_tract_grouped <- group_citations() %>%
+citations_by_tract_grouped <- here("data/citations_by_tract.csv.gz") %>%
+  vroom() %>%
+  aggregate_event_data() %>%
   inner_join(census_tracts, c("census_tract" = "TRACTCE")) %>%
   select(citations, census_tract, group_date, geometry) %>%
   st_sf

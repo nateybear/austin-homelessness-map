@@ -1,7 +1,9 @@
 # This script builds a treatment variable as the decile with the greatest percent reduction in mean citations per month.
 # Then it uses a random forest to try and estimate propensity scores
 
-citations_tract_month <- group_citations()
+citations_tract_month <- here("data/citations_by_tract.csv.gz") %>%
+  vroom() %>%
+  aggregate_event_data()
 
 # The day of the city council meeting
 date_cutoff <- as_datetime(ymd("20180628"))

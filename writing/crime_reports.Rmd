@@ -1,0 +1,43 @@
+---
+title: "Crime Reports Notes"
+author: "Nathan Hattersley"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(kableExtra)
+crime <- vroom("data/crime_reports.csv.gz")
+```
+
+Rather than pick out individual offense codes, I noticed that there is a category description variable:
+
+```{r}
+crime %>% distinct(category_description) %>% kbl %>% kable_styling
+```
+
+It seems like theft and robbery are the offense categories that we would care about. Let's look at the unique offenses listed in those categories:
+
+```{r}
+crime %>% 
+  dplyr::filter(category_description %in% c("Robbery", "Theft")) %>% 
+  count(highest_offense_description, highest_offense_code) %>% 
+  kbl() %>%
+  kable_styling()
+```
+
+I think that two that don't belong are "BREACH OF COMPUTER SECURITY" and "MISAPPLY FIDUCIARY PROP" (what homeless are fiduciaries?)
+
+How much data will we have to geocode?
+
+```{r}
+date_range <- ymd(20150101) %--% ymd(20191231)
+relevant_crime <- crime %>%
+  dplyr::filter(category_description %in% c("Robbery", "Theft")) %>%
+  dplyr::filter(!highest_offense_code %in% c(1109, 1201)) %>%
+  dplyr::filter(occurred_date_time %within% date_range)
+
+relevant_crime %>% count(is.na(latitude) | is.na(longitude))
+```
+
+Yes! So the latitude and longitude are well specified for the vast marjority of these cases. 
