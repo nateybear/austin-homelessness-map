@@ -25,7 +25,8 @@ librarian::shelf(
   crul,
   vroom,
   sf,
-  transformr
+  transformr,
+  randomForest
 )
 
 # try to mask stats::filter
