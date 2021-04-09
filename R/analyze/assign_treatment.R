@@ -14,20 +14,14 @@ assign_treatment <- function(citations_tract_month = .default_citations_tract_mo
     summarise(citations = mean(citations))
   
   # drop in mean citations after treatment
-  citations_tract_change <-
-    citations_tract_pre_post %>% group_modify(function(group_data, group_key) {
-      citations_before <-
-        group_data %>%
-        dplyr::filter(pre_treatment) %$%
-        citations
-      
-      citations_after <-
-        group_data %>%
-        dplyr::filter(!pre_treatment) %$%
-        citations
-      
-      tibble(change = (citations_before - citations_after))
-    })
+  citations_tract_change <- citations_tract_pre_post %>% group_modify(function(group_data, group_key) {
+    
+    citations_before <- group_data %>% dplyr::filter(pre_treatment) %$% citations
+    
+    citations_after <- group_data %>% dplyr::filter(!pre_treatment) %$% citations
+    
+    tibble(change = (citations_before - citations_after))
+  })
   
   # take census tracts with the highest drop as treatment group
   cutoff <- citations_tract_change %$% quantile(change, .9)
