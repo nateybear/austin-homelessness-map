@@ -1,0 +1,55 @@
+<<cache=TRUE, include=FALSE>>=
+source(".Rprofile", local = TRUE)
+source("R/analyze/assign_treatment.R", local = TRUE)
+library(tidyverse)
+
+GLOBALS$cutoff <- lubridate::ymd(20180628)
+data_early <- GLOBALS$citations %>% 
+    assign_treatment %>% 
+    inner_join(GLOBALS$crime, c("census_tract")) %>%
+    mutate(S = as.numeric(group_date > GLOBALS$cutoff), D = as.numeric(D))
+
+
+model_early_raw <- lm(reports ~ D*S, data = data_early)
+coef_early_raw <- coef(model_early_raw)["D:S"]
+se_early_raw <- model_early_raw %>% 
+    lmtest::coeftest(sandwich::vcovBS(., cluster = ~census_tract)) %>% 
+    `[`("D:S", "Std. Error")
+
+
+
+model_early_fe <- lm(reports ~ D*S + census_tract, data = data_early)
+coef_early_fe <- coef(model_early_fe)["D:S"]
+se_early_fe <- model_early_fe %>% 
+    lmtest::coeftest(sandwich::vcovBS(., cluster = ~census_tract)) %>% 
+    `[`("D:S", "Std. Error")
+
+
+
+GLOBALS$cutoff <- lubridate::ymd(20190620)
+data_late <- GLOBALS$citations %>% 
+    assign_treatment %>% 
+    inner_join(GLOBALS$crime, c("census_tract")) %>%
+    mutate(S = as.numeric(group_date > GLOBALS$cutoff), D = as.numeric(D)) %>%
+    ungroup()
+
+
+model_late_raw <- lm(reports ~ D*S, data = data_late)
+coef_late_raw <- coef(model_late_raw)["D:S"]
+se_late_raw <- model_late_raw %>% 
+    lmtest::coeftest(sandwich::vcovBS(., cluster = ~census_tract)) %>% 
+    `[`("D:S", "Std. Error")
+
+
+
+model_late_fe <- lm(reports ~ D*S + census_tract, data = data_late)
+coef_late_fe <- coef(model_late_fe)["D:S"]
+se_late_fe <- model_late_fe %>% 
+    lmtest::coeftest(sandwich::vcovBS(., cluster = ~census_tract)) %>% 
+    `[`("D:S", "Std. Error")
+@
+\begin{tabular}{ccc}
+    Cutoff Date     &   Estimate   &   Std Error \\ \toprule \\
+    June 28, 2018   &   \Sexpr{coef_early_fe}        &   \Sexpr{se_early_fe} \\
+    June 20, 2019   &   \Sexpr{coef_late_fe}        &   \Sexpr{se_late_fe}
+\end{tabular}
