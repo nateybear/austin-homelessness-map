@@ -1,11 +1,8 @@
 # This script calculates the treatment based on number of citations and
 # returns a tibble that contains the census tract and treatment status
 
-.default_citations_tract_month <- function() vroom(here("data/citations_by_tract.csv.gz")) %>% aggregate_event_data()
-
-assign_treatment <- function(citations_tract_month = .default_citations_tract_month()) {
-  # The day of the city council meeting
-  date_cutoff <- as_datetime(ymd("20180628"))
+assign_treatment <- function(citations_tract_month = GLOBALS$citations) {
+  date_cutoff <- as_datetime(GLOBALS$cutoff)
   
   # mean citations by tract both before and after treatment
   citations_tract_pre_post <- citations_tract_month %>%
@@ -20,7 +17,7 @@ assign_treatment <- function(citations_tract_month = .default_citations_tract_mo
     
     citations_after <- group_data %>% dplyr::filter(!pre_treatment) %$% citations
     
-    tibble(change = (citations_before - citations_after))
+    tibble(change = citations_before)
   })
   
   # take census tracts with the highest drop as treatment group
