@@ -1,0 +1,40 @@
+<<cache=TRUE, include=FALSE>>=
+source(".Rprofile", local = TRUE)
+source("R/analyze/assign_treatment.R", local = TRUE)
+library(tidyverse)
+
+GLOBALS$cutoff <- lubridate::ymd(20180628)
+data_early <- GLOBALS$citations %>% 
+    assign_treatment %>% 
+    inner_join(GLOBALS$crime, c("census_tract")) %>%
+    mutate(S = as.numeric(group_date > GLOBALS$cutoff), D = as.numeric(D)) %>%
+    group_by(census_tract) %>%
+    mutate(reports = reports - mean(reports)) %>%
+    ungroup()
+
+GLOBALS$cutoff <- lubridate::ymd(20190620)
+data_late <- GLOBALS$citations %>% 
+    assign_treatment %>% 
+    inner_join(GLOBALS$crime, c("census_tract")) %>%
+    mutate(S = as.numeric(group_date > GLOBALS$cutoff), D = as.numeric(D)) %>%
+    group_by(census_tract) %>%
+    mutate(reports = reports - mean(reports)) %>%
+    ungroup()
+
+f <- function(df, cond) df %>% filter({{cond}}) %$% mean(reports)
+@
+
+\begin{tabular}{r|ccc}
+    \toprule \multicolumn{4}{c}{}\\
+    \multicolumn{4}{c}{Panel A: Using \(t^* = \) June 28, 2018} \\[1em]
+             &           Treated                    &  Control                          &  Difference\\ \cmidrule(r){1-4}
+    Before    & \Sexpr{f(data_early, D & !S)}       &  \Sexpr{f(data_early, !D & !S)}   &  \Sexpr{f(data_early, D & !S) - f(data_early, !D & !S)} \\
+    After     & \Sexpr{f(data_early, D & S)}       &  \Sexpr{f(data_early, !D & S)}   &  \Sexpr{f(data_early, D & S) - f(data_early, !D & S)} \\
+    Difference & \Sexpr{f(data_early, D & S) - f(data_early, D & !S)} & \Sexpr{f(data_early, !D & S) - f(data_early, !D & !S)} & \Sexpr{(f(data_early, D & S) - f(data_early, !D & S)) - (f(data_early, D & !S) - f(data_early, !D & !S))} \\ \midrule\multicolumn{4}{c}{}\\
+
+    \multicolumn{4}{c}{Panel B: Using \(t^* = \) June 20, 2019} \\[1em]
+             &           Treated                    &  Control                          &  Difference\\ \cmidrule(r){1-4}
+    Before    & \Sexpr{f(data_late, D & !S)}       &  \Sexpr{f(data_late, !D & !S)}   &  \Sexpr{f(data_late, D & !S) - f(data_late, !D & !S)} \\
+    After     & \Sexpr{f(data_late, D & S)}       &  \Sexpr{f(data_late, !D & S)}   &  \Sexpr{f(data_late, D & S) - f(data_late, !D & S)} \\
+    Difference & \Sexpr{f(data_late, D & S) - f(data_late, D & !S)} & \Sexpr{f(data_late, !D & S) - f(data_late, !D & !S)} & \Sexpr{(f(data_late, D & S) - f(data_late, !D & S)) - (f(data_late, D & !S) - f(data_late, !D & !S))} \\ \bottomrule
+\end{tabular}

@@ -28,8 +28,8 @@ ggplot(plot_data, aes(x = event_date)) +
   labs(x = "", y = "") +
   theme_fivethirtyeight() +
   theme(axis.text.x = element_text(angle = -45)) +
-  geom_vline(xintercept = as_datetime(ymd(20180601)), color = muted("red")) +
-  geom_vline(xintercept = as_datetime(ymd(20190601)), color = muted("green")) +
+  geom_vline(xintercept = as_datetime(ymd(20180601)), color = "red") +
+  geom_vline(xintercept = as_datetime(ymd(20190601)), color = "green") +
   geom_hline(yintercept = 0)
 
 ggsave(here("figures/event_study.png"))
