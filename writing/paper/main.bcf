@@ -1998,15 +1998,16 @@
     <bcf:citekey order="1">observer_article</bcf:citekey>
     <bcf:citekey order="2">ordinance_audit</bcf:citekey>
     <bcf:citekey order="3">casar_faq</bcf:citekey>
-    <bcf:citekey order="4">austinmonitor</bcf:citekey>
-    <bcf:citekey order="5">open_data_portal</bcf:citekey>
+    <bcf:citekey order="4">ordinance_proposed_revision</bcf:citekey>
+    <bcf:citekey order="5">austinmonitor</bcf:citekey>
     <bcf:citekey order="6">open_data_portal</bcf:citekey>
-    <bcf:citekey order="7">pit2020</bcf:citekey>
-    <bcf:citekey order="8">ordinance_audit</bcf:citekey>
-    <bcf:citekey order="9">observer_article</bcf:citekey>
-    <bcf:citekey order="10">eighner</bcf:citekey>
-    <bcf:citekey order="11">pit2017</bcf:citekey>
+    <bcf:citekey order="7">open_data_portal</bcf:citekey>
+    <bcf:citekey order="8">pit2020</bcf:citekey>
+    <bcf:citekey order="9">ordinance_audit</bcf:citekey>
+    <bcf:citekey order="10">observer_article</bcf:citekey>
+    <bcf:citekey order="11">eighner</bcf:citekey>
     <bcf:citekey order="12">pit2017</bcf:citekey>
+    <bcf:citekey order="13">pit2017</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
