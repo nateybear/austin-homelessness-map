@@ -43,7 +43,7 @@ citations_by_tract_grouped <- citation_data %>%
 
 map_data <- st_bbox(citations_by_tract_grouped) %>% as.numeric() %>% get_stamenmap(maptype = "toner", zoom = 13)
 
-ggmap(map_data, extent = "normal", maprange=FALSE) +
+ggmap(map_data) +
   geom_sf(
     data = citations_by_tract_grouped,
     aes(
